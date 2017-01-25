@@ -37,14 +37,14 @@ class TollBooth(object):
 	def drawBooth(self):
 		self.thisBooth = self.canvas.create_rectangle(self.bbox, fill = self.color)
 		self.canvas.create_rectangle([self.bbox[0], self.bbox[1] - self.accDist, 
-				self.bbox[2], self.bbox[1]], fill = "gray")
+			self.bbox[2], self.bbox[1]], fill = "gray")
 		self.canvas.create_rectangle([self.bbox[0], self.bbox[1] - (self.runDist + self.accDist), 
-				self.bbox[2], self.bbox[1] - self.accDist], fill = "lightgray")
+			self.bbox[2], self.bbox[1] - self.accDist], fill = "lightgray")
 
 	def drawToolTip(self):
 		if (self.toolTipState):
 			self.canvas.itemconfig(self.toolTip, state = "normal", text = 
-					"{}, cars = {:2.2f}, spawn = {}".format(self.boothId, self.totalSpawned / Window.Window.TIME * 3600, self.tSpawn))
+				"{}, cars = {:2.2f}, spawn = {}".format(self.boothId, self.totalSpawned / Window.Window.TIME * 3600, self.tSpawn))
 		else:
 			self.canvas.itemconfig(self.toolTip, state = "hidden")
 
@@ -67,19 +67,8 @@ class TollBooth(object):
 	# iterates through the list of vehicles owned by this toll lane
 	def updateCars(self):
 		for c in self.carList:
-			if (c.booth != self): continue		# if this booth does not own the car
-			c.updateCar()
-
-			if (self.next is None): continue	# if there is no next booth
-			nextDist = (c.bbox[0] + c.bbox[2]) / 2 - (self.next.bbox[0] + self.next.bbox[2]) / 2
-
-			# if the car is in the merging area
-			if (not c.merging and c.bbox[3] <= self.next.bbox[1] - self.next.accDist):
-				c.startMerge()
-			# if the car has entered the other booth lane
-			elif (nextDist > 0):
-				c.moveCar(-nextDist, 0)
-				c.endMerge()
+			if (c.booth == self):
+				c.updateCar()
 
 	# performs updates for this toll lane
 	def update(self):
@@ -87,29 +76,22 @@ class TollBooth(object):
 		self.updateCars()
 		self.drawToolTip()
 			
-	# look for a car in front of the one given by the parameter, return distance and speed
-	def queryCar(self, car):
-		carClose = None
+	# return the car whos front bumper is closest to passed car front bumper
+	def queryCars(self, car):
+		carCheck = None
 		for c in self.carList:
 			if (c == car): continue
-			if (carClose == None): carClose = c
-			elif (abs(car.centreY() - c.centreY()) < abs(car.centreY() - carClose.centreY())):
-				carClose = c
-		if (carClose == None): return None, None
+			
+			if (0 < car.bbox[1] - c.bbox[1]):
+				if (carCheck is None or car.bbox[1] - carCheck.bbox[1] < car.bbox[1] - c.bbox[1]):
+					carCheck = c
 
-		sepDist = car.bbox[1] - carClose.bbox[3]
-		reactDist = car.getReactDist(carClose.speed)
-		wantDist = car.getWantDist()
-
-		if (car.booth.next == self):
-			if (-(car.dim[1] + carClose.dim[1] + car.fDist) < sepDist < car.fDist):
-				return sepDist, carClose.speed
-		else:
-			if (-car.dim[1] < sepDist < reactDist):
-				return abs(sepDist), carClose.speed
-		
-		return None, None
+		return car.bbox[1] - carCheck.bbox[3], carCheck.speed if carCheck else None, None
 
 	# make a tooltip
 	def makeToolTip(self, event):
 		self.toolTipState = not self.toolTipState
+
+	# returns the geometric center as coordinates
+	def getCenter(self):
+		return average(self.bbox[::2]), average(self.bbox[1::2])
