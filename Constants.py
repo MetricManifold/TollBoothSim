@@ -1,0 +1,31 @@
+
+# WINDOW
+TICK_INTERVAL = 0.010 # number of seconds between updates
+GRID_RATIO = 2 # pixels needed to measure out a whole meter
+
+# TOLLBOOTH
+BOOTH_LENGTH = 12 * GRID_RATIO
+BOOTH_WIDTH = 4 * GRID_RATIO
+ACCELERATION_DISTANCE = 40 * GRID_RATIO # length of distance to accelerate
+RUN_DISTANCE = 70 * GRID_RATIO # length of ramp
+SPAWN_RATE_ELECTRONIC = 9 # seconds before another car spawn
+SPAWN_RATE_EXACT = 12 # seconds before another car spawns
+SPAWN_RATE_TELLER = 15 # seconds before another car spawns
+SEPARATION_DISTANCE = 1 * GRID_RATIO
+
+# CAR
+FOLLOW_DISTANCE = 2.5 * GRID_RATIO
+CAR_LENGTH = 5 * GRID_RATIO
+CAR_LENGTH_DELTA = 1 * GRID_RATIO
+CAR_WIDTH = 2 * GRID_RATIO
+MERGE_ALLOW_PROBABILITY = 0.3 # chance of slowing down to allow another to merge
+ACCELERATION = 1.45 * GRID_RATIO * TICK_INTERVAL ** 2 # meters per second
+ACCELERATION_DELTA = 0.06 * GRID_RATIO * TICK_INTERVAL ** 2
+MIN_ACCELERATION = 0.61 * GRID_RATIO * TICK_INTERVAL ** 2 # meters per second
+MIN_ACCELERATION_DELTA = 0.10 * GRID_RATIO * TICK_INTERVAL ** 2
+MAX_DECELERATION = 3.56 * GRID_RATIO * TICK_INTERVAL ** 2 # meters per second
+MAX_DECELERATION_DELTA = 0.10 * GRID_RATIO * TICK_INTERVAL ** 2
+MAX_SPEED = 14.0 * GRID_RATIO * TICK_INTERVAL # meters per second
+MAX_SPEED_DELTA = 1.2 * GRID_RATIO * TICK_INTERVAL # meters per second
+MIN_MOVING_SPEED = 6.0 * GRID_RATIO * TICK_INTERVAL
+MIN_MOVING_SPEED_DELTA = 0.6 * GRID_RATIO * TICK_INTERVAL
