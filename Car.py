@@ -26,69 +26,63 @@ class Car(object):
 		self.wantsMerging = False
 		self.toolTipState = False
 
-		self.thisCar = self.canvas.create_rectangle(self.bbox, fill = "black")
-		self.toolTip = self.canvas.create_text(self.bbox[2] + self.dim[0], self.bbox[1] - self.dim[1] / 2, anchor = "nw")
+		self.drawnCar = self.canvas.create_rectangle(self.bbox, fill = "black")
+		self.toolTip = self.canvas.create_text(self.bbox[2] + self.dim[0], self.bbox[1] - self.dim[1] / 2, anchor = "nw", state = "hidden")
 		self.currentAccel = 0
 		self.sepDist = 0, 0
 
-		self.canvas.tag_bind(self.thisCar, "<Button-1>", self.showToolTip)
+		self.canvas.tag_bind(self.drawnCar, "<Button-1>", self.toggleToolTip)
 
 	# updates the car speed and position
 	def updateCar(self):
 
-		# update the merging behaviour
-		if (self.next):
-			nextDist = self.getCenter()[0] - self.booth.next.getCenter()[0]
-			if (self.shouldMerge()):	# if the car should begin to merge
-				self.startMerge()
-			elif (nextDist > 0):		# if the car has entered the other booth lane
-				self.moveCar(-nextDist, 0)
-				self.endMerge()		
-
 		# slow down for car ahead or if needed for a merge
-		nearCarDistAdj, nearCarSpeedAdj = self.booth.next.queryCars(self) if self.wantsMerging else (None, None)
+		nearCarDistAdj, nearCarSpeedAdj = self.booth.next.queryCars(self) if self.wantsMerging and self.booth.next else (None, None)
 		nearCarDist, nearCarSpeed = self.booth.queryCars(self)
 
-		if (car.booth.next == self):
-			if (-(car.dim[1] + carClose.dim[1] + car.fDist) < nearCarDist < car.fDist):
-				return sepDist, carClose.speed
-		else:
-			sepDist = car.bbox[1] - carFront.bbox[3]
-			reactDist = car.getReactDist(carFront.speed)
-			wantDist = car.getWantDist()
-			if (-car.dim[1] < sepDist < reactDist):
-				return abs(sepDist), carClose.speed
+		sDelta1 = self.accel
+		sDelta2 = self.accel
+		if (nearCarDist and nearCarDist < self.getReactDist()):
+			sDelta1 = self.getSensitivity(nearCarDist) * (nearCarSpeed - self.speed)
+		if (nearCarDistAdj and self.wantsMerging and nearCarDistAdj < self.getMergeDist()):
+			sDelta2 = self.mergeAcceleration()
 
-		return None, None
-
-
-		if (self.wantsMerging and nearCarDistAdj is None):
-			self.doMerge()
-
-		sDelta = self.accel
-		if (nearCarDist is not None):
-			sDelta = self.getSensitivity(nearCarDist) * (nearCarSpeed - self.speed)
-		elif (nearCarDistAdj is not None):
-			sDelta = self.mergeAcceleration()
-		
-		sDelta = min(max(sDelta, -self.decel), self.accel)
+		sDelta = min(max(min(sDelta1, sDelta2), -self.decel), self.accel)
 		self.speed = min(max(self.speed + sDelta, 0), self.limit)
 		self.moveCar(self.speed * cos(self.dir), self.speed * sin(self.dir))
+		self.workMerge(nearCarDistAdj)
 
 		if self.bbox[1] < 0: 
 			self.removeCar()
 		else:		 
 			self.drawCar()
+			self.drawToolTip()
 
 		# info for tooltip
-		self.sepDist = nearCarDist, nearCarDistAdj
 		self.currentAccel = sDelta
+		self.sepDist = nearCarDist, nearCarDistAdj
 
-	# returns whether this car should merge or not
-	def shouldMerge(self):
-		return self.bbox[1] < self.booth.next.bbox[1] - self.booth.next.accDist and \
-			not self.wantsMerging and self not in self.booth.next.carList
-		
+	# moves the car by the given x/y shift
+	def moveCar(self, shiftx, shifty):
+		self.bbox[0] += shiftx
+		self.bbox[1] -= shifty
+		self.bbox[2] += shiftx
+		self.bbox[3] -= shifty
+
+	# update the merging behaviour
+	def workMerge(self, mergingDistFree):
+		if (not self.booth.next): return
+
+		if (self.bbox[1] < self.booth.next.bbox[1] - self.booth.next.accDist):
+			nextDist = self.getCenter()[0] - self.booth.next.getCenter()[0]
+			if (not self.wantsMerging and self not in self.booth.next.carList):
+				self.startMerge()
+			elif (self.wantsMerging and (mergingDistFree == None or mergingDistFree > self.getMergeDist())):
+				self.doMerge()
+			elif (nextDist > 0):
+				self.moveCar(-nextDist, 0)
+				self.endMerge()
+
 	# enter the merge behaviour to find a spot and transfer booth lanes
 	def startMerge(self):
 		self.wantsMerging = True
@@ -98,57 +92,56 @@ class Car(object):
 		self.dir = pi / 3
 		self.wantsMerging = False
 		self.booth.next.carList.append(self)
-		self.booth.next.totalSpawned += 1
 
 	# once entered, become a flow of booth lane traffic
 	def endMerge(self):
 		self.dir = pi / 2
 		self.booth.carList.remove(self)
 		self.booth = self.booth.next
+		self.booth.totalSpawned += 1
 
 	# make a tooltip
-	def showToolTip(self, event):
+	def toggleToolTip(self, event):
 		self.toolTipState = not self.toolTipState
 		self.canvas.itemconfig(self.toolTip, state = "normal" if self.toolTipState else "hidden")
 
 	# returns the distance this car desires with the one ahead
-	def getWantDist(self):
+	def getFollowDist(self):
 		return self.distf + self.speed / (4.4 * TICK_INTERVAL) * self.dim[1]
 
-	# the threshold at which the car should begin braking for a car in front
-	def getReactDist(self, speedOther):
-		return self.getWantDist() + (speedOther ** 2 - self.speed ** 2) / ((2.0 * -self.decel))
+	# returns the distance this car desires with the one ahead
+	def getMergeDist(self):
+		return self.distf + self.speed / (14.0 * TICK_INTERVAL) * self.dim[1]
 
-	# a value to determine the braking power applied when choosing the desired distance
-	def getSensitivity(self, dist):
-		return (28.0 * TICK_INTERVAL) / (2.0 * (dist - self.getWantDist()))
+	# the threshold at which the car should begin braking for a car in front
+	def getReactDist(self):
+		return self.getFollowDist() - (self.speed ** 2) / ((2.0 * -self.decel))
+
+	# a value to determine the braking power applied when choosing the desired distance with distance > 0
+	def getSensitivity(self, distDelta):
+		denominator = 2.0 * max(0.001, distDelta - self.getFollowDist())
+		return (28.0 * TICK_INTERVAL) / denominator
 
 	# defines the acceleration to take on while attempting to merge
 	def mergeAcceleration(self):
-		return -self.decel if self.speed > self.minSpeed else 0.0
-
-	# moves the car by the given x/y shift
-	def moveCar(self, shiftx, shifty):
-		self.bbox[0] += shiftx
-		self.bbox[1] -= shifty
-		self.bbox[2] += shiftx
-		self.bbox[3] -= shifty
+		return -self.decel if self.speed > self.limit / 2 else 0.0
 
 	# draws the car to the canvas at its current position
 	def drawCar(self):
-		self.canvas.coords(self.thisCar, self.bbox)
+		self.canvas.coords(self.drawnCar, self.bbox)
 
+	def drawToolTip(self):
 		self.canvas.coords(self.toolTip, self.bbox[2] + self.dim[0], self.bbox[1] - self.dim[1] / 2)
 		self.canvas.itemconfig(self.toolTip, text = 
-			"{} {:2.2f}kph, {:2.2f}ms-2 {}".format(self.booth.boothId, self.speed / TICK_INTERVAL / GRID_RATIO * 3.6, 
-				self.currentAccel / TICK_INTERVAL ** 2 / GRID_RATIO, self.sepDist))
+			"{:2.2f}kph, {:2.2f}ms-2 {:2.2f},{:2.2f},{:2.2f}".format(self.speed / TICK_INTERVAL / GRID_RATIO * 3.6, 
+				self.currentAccel / TICK_INTERVAL ** 2 / GRID_RATIO, (self.sepDist[0] if self.sepDist[0] else 0) * GRID_RATIO, self.getFollowDist(),self.getReactDist()))
 
 	# removes this car from updates and the canvas
 	def removeCar(self):
 		self.booth.carList.remove(self)
-		self.canvas.delete(self.thisCar)
+		self.canvas.delete(self.drawnCar)
 		self.canvas.delete(self.toolTip)
 
 	# returns the geometric center as coordinates
 	def getCenter(self):
-		return average(self.bbox[::2]), average(self.bbox[1::2])
+		return sum(self.bbox[::2]) / len(self.bbox) * 2, sum(self.bbox[1::2]) / len(self.bbox) * 2

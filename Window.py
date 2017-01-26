@@ -5,7 +5,7 @@ from Constants import *
 
 class Window(object):
 
-	TIME = 0
+	TIME = 1
 	outputFile = open("output.txt", 'w')
 	paused = False
 	timeMultiplier = 1
@@ -62,3 +62,12 @@ class Window(object):
 
 	def setPause(self, event):
 		Window.paused = not Window.paused
+
+	def toggleCarToolTips(self, event):
+		for b in self.boothList:
+			for c in b.carList:
+				c.toggleToolTip()
+
+	def toggleBoothToolTips(self, event):
+		for b in self.boothList:
+			b.toggleToolTip()

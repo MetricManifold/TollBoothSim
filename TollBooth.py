@@ -28,41 +28,38 @@ class TollBooth(object):
 		self.nextWrite = 0
 
 		self.toolTipState = False
-		self.toolTip = self.canvas.create_text(self.bbox[2] + self.dim[0] / 2, self.bbox[1] + self.dim[1] / 2, anchor = "nw")
+		self.toolTip = self.canvas.create_text(self.bbox[2] + self.dim[0] / 2, 
+			self.bbox[1] + self.dim[1] / 2, state = "hidden", anchor = "nw")
 
-		self.drawBooth()
-		self.canvas.tag_bind(self.thisBooth, "<Button-1>", self.makeToolTip)
-
-	# draws this booth to the canvas
-	def drawBooth(self):
-		self.thisBooth = self.canvas.create_rectangle(self.bbox, fill = self.color)
+		self.drawnBooth = self.canvas.create_rectangle(self.bbox, fill = self.color)
 		self.canvas.create_rectangle([self.bbox[0], self.bbox[1] - self.accDist, 
 			self.bbox[2], self.bbox[1]], fill = "gray")
 		self.canvas.create_rectangle([self.bbox[0], self.bbox[1] - (self.runDist + self.accDist), 
 			self.bbox[2], self.bbox[1] - self.accDist], fill = "lightgray")
 
+		self.canvas.tag_bind(self.drawnBooth, "<Button-1>", self.toggleToolTip)
+
+	# draw the tooltip
 	def drawToolTip(self):
-		if (self.toolTipState):
-			self.canvas.itemconfig(self.toolTip, state = "normal", text = 
-				"{}, cars = {:2.2f}, spawn = {}".format(self.boothId, self.totalSpawned / Window.Window.TIME * 3600, self.tSpawn))
-		else:
-			self.canvas.itemconfig(self.toolTip, state = "hidden")
+		self.canvas.coords(self.toolTip, self.bbox[2] + self.dim[0] / 2, self.bbox[1] + self.dim[1] / 2)
+		self.canvas.itemconfig(self.toolTip, text = "{}, cars = {:2.2f}, spawn = {}".format(
+			self.boothId, self.totalSpawned / Window.Window.TIME * 3600, self.tSpawn))
 
-		if self.next == None and self.nextWrite >= 1.0:
-			Window.Window.outputFile.write(str(Window.Window.TIME) + " " + str(self.totalSpawned / Window.Window.TIME * 3600) + '\n')
-			self.nextWrite = 0
-
-		self.nextWrite += TICK_INTERVAL
+	# draws the car to the canvas at its current position
+	def drawTollBooth(self):
+		self.canvas.coords(self.drawnBooth, self.bbox)
 
 	# creates a car out of this booth
 	def spawnCar(self):
 		if (self.tRemain <= 0.0):
 			self.tRemain = poisson(self.tSpawn)
-			self.carList.append(Car(self.canvas, self))
-			self.totalSpawned += 1
+			
+			newCar = Car(self.canvas, self)
+			if (not self.queryCars(newCar)[0] or self.queryCars(newCar)[0] > 0):
+				self.carList.append(newCar)
+				self.totalSpawned += 1
 		else:
 			self.tRemain -= TICK_INTERVAL
-
 
 	# iterates through the list of vehicles owned by this toll lane
 	def updateCars(self):
@@ -75,23 +72,31 @@ class TollBooth(object):
 		self.spawnCar()
 		self.updateCars()
 		self.drawToolTip()
+
+		if self.next == None and self.nextWrite >= 1.0:
+			Window.Window.outputFile.write(str(Window.Window.TIME) + " " + str(self.totalSpawned / Window.Window.TIME * 3600) + '\n')
+			self.nextWrite = 0
+
+		self.nextWrite += TICK_INTERVAL
 			
-	# return the car whos front bumper is closest to passed car front bumper
+	# finds car such with smallest distance between front bumpers and returns distance from
+	#	front bumper of rear car to back bumper of front car, and front car speed
 	def queryCars(self, car):
-		carCheck = None
+		nearCar = None
 		for c in self.carList:
 			if (c == car): continue
 			
-			if (0 < car.bbox[1] - c.bbox[1]):
-				if (carCheck is None or car.bbox[1] - carCheck.bbox[1] < car.bbox[1] - c.bbox[1]):
-					carCheck = c
+			if (-(car.dim[1] + c.dim[1]) < car.bbox[1] - c.bbox[3]):
+				if (nearCar is None or abs(car.bbox[1] - c.bbox[3]) < abs(car.bbox[1] - nearCar.bbox[3])):
+					nearCar = c
 
-		return car.bbox[1] - carCheck.bbox[3], carCheck.speed if carCheck else None, None
+		return (car.bbox[1] - nearCar.bbox[3], nearCar.speed) if nearCar else (None, None)
 
 	# make a tooltip
-	def makeToolTip(self, event):
+	def toggleToolTip(self, event):
 		self.toolTipState = not self.toolTipState
+		self.canvas.itemconfig(self.toolTip, state = "normal" if self.toolTipState else "hidden")
 
 	# returns the geometric center as coordinates
 	def getCenter(self):
-		return average(self.bbox[::2]), average(self.bbox[1::2])
+		return sum(self.bbox[::2]) / len(self.bbox) * 2, sum(self.bbox[1::2]) / len(self.bbox) * 2
