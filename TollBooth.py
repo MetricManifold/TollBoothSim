@@ -56,8 +56,7 @@ class TollBooth(object):
 			
 			newCar = Car(self.canvas, self)
 			if (not self.queryCars(newCar)[0] or self.queryCars(newCar)[0] > 0):
-				self.carList.append(newCar)
-				self.totalSpawned += 1
+				self.addCar(newCar)
 		else:
 			self.tRemain -= TICK_INTERVAL
 
@@ -82,15 +81,35 @@ class TollBooth(object):
 	# finds car such with smallest distance between front bumpers and returns distance from
 	#	front bumper of rear car to back bumper of front car, and front car speed
 	def queryCars(self, car):
-		nearCar = None
-		for c in self.carList:
-			if (c == car): continue
-			
-			if (-(car.dim[1] + c.dim[1]) < car.bbox[1] - c.bbox[3]):
-				if (nearCar is None or abs(car.bbox[1] - c.bbox[3]) < abs(car.bbox[1] - nearCar.bbox[3])):
-					nearCar = c
+		carBehind = None
+		carFront = None
+		length = len(self.carList)
+		
+		if car not in self.carList:
+			pos = 0
+			for c in self.carList:
+				if (car.bbox[1] > c.bbox[1] or pos == length - 1):
+					break
+				pos += 1
+			if (pos > 0):
+				carBehind = self.carList[pos]
+		else:
+			pos = self.carList.index(car)
 
-		return (car.bbox[1] - nearCar.bbox[3], nearCar.speed) if nearCar else (None, None)
+		if (pos + 1 < length):
+			carFront = self.carList[pos + 1]
+
+		if not carFront and not carBehind:
+			return None, None
+		elif not carBehind:
+			carNear = carFront
+		elif not carFront:
+			carNear = carBehind
+		elif abs(car.bbox[1] - carFront.bbox[1]) < abs(car.bbox[1] - carBehind.bbox[1]):
+			carNear = carFront
+		else: carNear = carBehind
+
+		return (car.bbox[1] - carNear.bbox[3], carNear.speed)
 
 	# make a tooltip
 	def toggleToolTip(self, event):
@@ -100,3 +119,29 @@ class TollBooth(object):
 	# returns the geometric center as coordinates
 	def getCenter(self):
 		return sum(self.bbox[::2]) / len(self.bbox) * 2, sum(self.bbox[1::2]) / len(self.bbox) * 2
+
+	# add car so list is ordered with car closest to booth first
+	def addCar(self, car):
+		if car in self.carList:
+			return
+		
+		if len(self.carList) == 0:
+			self.carList.append(car)
+		else:
+			pos = 0
+			length = len(self.carList)
+			for c in self.carList:
+				if (car.bbox[1] > c.bbox[1] or pos == length - 1):
+					self.carList.insert(pos, car)
+					return
+				pos += 1
+		
+		self.totalSpawned += 1
+
+	# remove a car from the car list
+	def removeCar(self, car):
+		self.carList.remove(car)
+
+
+
+

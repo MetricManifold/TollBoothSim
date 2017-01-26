@@ -20,12 +20,13 @@ class Window(object):
 		self.canvas.pack()
 
 		self.time = self.canvas.create_text(10, 10, anchor = "nw")
+		self.BtoggleCarToolTips = self.canvas.create_rectangle(self.width - 20, 0, self.width, 20)
 		
 		self.createTollBoothLine(7)
 
 		self.root.bind("<space>", self.setPause)
-		self.root.bind("<Left>", self.decreaseTime)
-		self.root.bind("<Right>", self.increaseTime)
+		self.root.bind("+", self.decreaseTime)
+		self.root.bind("-", self.increaseTime)
 
 	def createTollBoothLine(self, count):
 		boothTypes1 = [SPAWN_RATE_TELLER, SPAWN_RATE_TELLER, SPAWN_RATE_EXACT, SPAWN_RATE_EXACT, SPAWN_RATE_EXACT, SPAWN_RATE_ELECTRONIC, SPAWN_RATE_ELECTRONIC]
