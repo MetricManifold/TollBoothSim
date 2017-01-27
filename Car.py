@@ -19,7 +19,7 @@ class Car(object):
 		self.distf = FOLLOW_DISTANCE
 		self.speed = 0.0
 		self.accel = ACCELERATION + uniform(-ACCELERATION_DELTA, ACCELERATION_DELTA)
-		self.decel = MAX_DECELERATION + uniform(-MAX_DECELERATION_DELTA, MAX_DECELERATION_DELTA)
+		self.decel = -MAX_DECELERATION + uniform(-MAX_DECELERATION_DELTA, MAX_DECELERATION_DELTA)
 		self.limit = MAX_SPEED + uniform(-MAX_SPEED_DELTA, MAX_SPEED_DELTA)
 		self.dir = pi / 2
 
@@ -37,31 +37,33 @@ class Car(object):
 	# updates the car speed and position
 	def updateCar(self):
 
-		# slow down for car ahead or if needed for a merge
-		nearCarDistAdj, nearCarSpeedAdj = self.booth.next.queryCars(self) if self.wantsMerging and self.booth.next else (None, None)
-		nearCarDist, nearCarSpeed = self.booth.queryCars(self)
-
 		sDelta1 = self.accel
 		sDelta2 = self.accel
-		if (nearCarDist and nearCarDist < self.getReactDist()):
-			sDelta1 = (1 / min(0.001, nearCarDist)) * (nearCarSpeed ** 2 - self.speed ** 2)
-		if (nearCarDistAdj and self.wantsMerging and nearCarDistAdj < self.getReactDist()):
-			sDelta2 = (1 / min(0.001, nearCarDistAdj)) * (nearCarSpeedAdj ** 2 - self.speed ** 2)
 
-		sDelta = min(max(min(sDelta1, sDelta2), -1000.0), self.accel)
+		# responding to vehicle ahead
+		nearCarDist, nearCarSpeed = self.booth.queryCars(self)
+		if (nearCarDist and nearCarDist < self.getReactDist()):
+			sDelta1 = self.getSensitivity(nearCarDist) * (nearCarSpeed - self.speed)
+
+		# when merging
+		nearCarDistAdj, nearCarSpeedAdj = self.booth.next.queryCars(self) if (self.wantsMerging) else (None, None)
+		if (nearCarDistAdj and self.wantsMerging and nearCarDistAdj < self.getReactDist()):
+			sDelta2 = self.getSensitivity(nearCarDistAdj - self.getMergeDist()) * (nearCarSpeedAdj - self.speed)
+
+		sDelta = min(max(min(sDelta1, sDelta2), self.decel), self.accel)
 		self.speed = min(max(self.speed + sDelta, 0), self.limit)
 		self.moveCar(self.speed * cos(self.dir), self.speed * sin(self.dir))
 		self.workMerge(nearCarDistAdj)
 
 		if self.bbox[1] < 0: 
 			self.removeCar()
-		else:		 
+		else: 
 			self.drawCar()
 			self.drawToolTip()
 
 		# info for tooltip
 		self.currentAccel = min(sDelta1, sDelta2)
-		self.sepDist = nearCarDist and nearCarDist < self.getReactDist(), nearCarDistAdj and self.wantsMerging and nearCarDistAdj < self.getReactDist()
+		self.sepDist = nearCarDist, nearCarDistAdj
 
 	# moves the car by the given x/y shift
 	def moveCar(self, shiftx, shifty):
@@ -78,7 +80,7 @@ class Car(object):
 			nextDist = self.getCenter()[0] - self.booth.next.getCenter()[0]
 			if (not self.wantsMerging and self not in self.booth.next.carList):
 				self.startMerge()
-			elif (self.wantsMerging and (mergingDistFree == None or mergingDistFree > self.getMergeDist())):
+			elif (self.wantsMerging and (mergingDistFree == None or not -self.distf - self.dim[1] * 2 < mergingDistFree < self.getMergeDist())):
 				self.doMerge()
 			elif (nextDist > 0):
 				self.moveCar(-nextDist, 0)
@@ -102,7 +104,7 @@ class Car(object):
 		self.booth.totalSpawned += 1
 
 	# make a tooltip
-	def toggleToolTip(self, event):
+	def toggleToolTip(self, event = None):
 		self.toolTipState = not self.toolTipState
 		self.canvas.itemconfig(self.toolTip, state = "normal" if self.toolTipState else "hidden")
 
@@ -116,15 +118,15 @@ class Car(object):
 
 	# the threshold at which the car should begin braking for a car in front
 	def getReactDist(self):
-		return self.getFollowDist() - (self.speed ** 2) / ((2.0 * -self.decel))
+		return self.getFollowDist() - (self.speed ** 2) / ((2.0 * self.decel))
 
 	# a value to determine the braking power applied when choosing the desired distance with distance > 0
 	def getSensitivity(self, distDelta):
-		return 14.0 * TICK_INTERVAL * 0.5 / distDelta if distDelta > 0 else -1000.0
+		return 28.0 * TICK_INTERVAL * 0.5 / distDelta if distDelta > 0 else -1000.0
 
 	# defines the acceleration to take on while attempting to merge
 	def mergeAcceleration(self):
-		return -self.decel if self.speed > self.limit / 2 else 0.0
+		return self.decel if self.speed > self.limit / 2 else 0.0
 
 	# draws the car to the canvas at its current position
 	def drawCar(self):

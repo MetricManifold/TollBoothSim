@@ -112,7 +112,7 @@ class TollBooth(object):
 		return (car.bbox[1] - carNear.bbox[3], carNear.speed)
 
 	# make a tooltip
-	def toggleToolTip(self, event):
+	def toggleToolTip(self, event = None):
 		self.toolTipState = not self.toolTipState
 		self.canvas.itemconfig(self.toolTip, state = "normal" if self.toolTipState else "hidden")
 
@@ -125,23 +125,17 @@ class TollBooth(object):
 		if car in self.carList:
 			return
 		
-		if len(self.carList) == 0:
-			self.carList.append(car)
-		else:
-			pos = 0
-			length = len(self.carList)
-			for c in self.carList:
-				if (car.bbox[1] > c.bbox[1] or pos == length - 1):
-					self.carList.insert(pos, car)
-					return
-				pos += 1
-		
+		pos = 0
+		length = len(self.carList)
+		for c in self.carList:
+			if (car.bbox[1] > c.bbox[1] or pos == length - 1):
+				break
+			pos += 1
+		self.carList.insert(pos, car)
 		self.totalSpawned += 1
 
 	# remove a car from the car list
 	def removeCar(self, car):
 		self.carList.remove(car)
-
-
 
 

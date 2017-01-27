@@ -1,13 +1,13 @@
 
 # WINDOW
 TICK_INTERVAL = 0.010 # number of seconds between updates
-GRID_RATIO = 2 # pixels needed to measure out a whole meter
+GRID_RATIO = 1.5 # pixels needed to measure out a whole meter
 
 # TOLLBOOTH
 BOOTH_LENGTH = 12 * GRID_RATIO
 BOOTH_WIDTH = 4 * GRID_RATIO
-ACCELERATION_DISTANCE = 40 * GRID_RATIO # length of distance to accelerate
-RUN_DISTANCE = 70 * GRID_RATIO # length of ramp
+ACCELERATION_DISTANCE = 60 * GRID_RATIO # length of distance to accelerate
+RUN_DISTANCE = 100 * GRID_RATIO # length of ramp
 SPAWN_RATE_ELECTRONIC = 9 # seconds before another car spawn
 SPAWN_RATE_EXACT = 12 # seconds before another car spawns
 SPAWN_RATE_TELLER = 15 # seconds before another car spawns
