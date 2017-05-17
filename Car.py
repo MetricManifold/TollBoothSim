@@ -16,7 +16,6 @@ class Car(object):
 		self.bbox = [booth.startx - self.dim[0] / 2, booth.starty - self.dim[1] / 2,
 				booth.startx + self.dim[0] / 2, booth.starty + self.dim[1] / 2]
 		
-		self.distf = FOLLOW_DISTANCE
 		self.speed = 0.0
 		self.accel = ACCELERATION + uniform(-ACCELERATION_DELTA, ACCELERATION_DELTA)
 		self.decel = -MAX_DECELERATION + uniform(-MAX_DECELERATION_DELTA, MAX_DECELERATION_DELTA)
@@ -42,13 +41,13 @@ class Car(object):
 
 		# responding to vehicle ahead
 		nearCarDist, nearCarSpeed = self.booth.queryCars(self)
-		if (nearCarDist and nearCarDist < self.getReactDist()):
-			sDelta1 = self.getSensitivity(nearCarDist) * (nearCarSpeed - self.speed)
+		if (nearCarDist and nearCarDist < self.getReactDist() and nearCarSpeed < self.speed):
+			sDelta1 = self.getSensitivity(nearCarDist) * (nearCarSpeed - self.speed) - self.getStabilityFactor(nearCarDist)
 
 		# when merging
 		nearCarDistAdj, nearCarSpeedAdj = self.booth.next.queryCars(self) if (self.wantsMerging) else (None, None)
 		if (nearCarDistAdj and self.wantsMerging and nearCarDistAdj < self.getReactDist()):
-			sDelta2 = self.getSensitivity(nearCarDistAdj - self.getMergeDist()) * (nearCarSpeedAdj - self.speed)
+			sDelta2 = self.getMergeAcceleration()
 
 		sDelta = min(max(min(sDelta1, sDelta2), self.decel), self.accel)
 		self.speed = min(max(self.speed + sDelta, 0), self.limit)
@@ -80,7 +79,7 @@ class Car(object):
 			nextDist = self.getCenter()[0] - self.booth.next.getCenter()[0]
 			if (not self.wantsMerging and self not in self.booth.next.carList):
 				self.startMerge()
-			elif (self.wantsMerging and (mergingDistFree == None or not -self.distf - self.dim[1] * 2 < mergingDistFree < self.getMergeDist())):
+			elif (self.wantsMerging and (mergingDistFree == None or not -FOLLOW_DISTANCE - self.dim[1] * 2 < mergingDistFree < self.getMergeDist())):
 				self.doMerge()
 			elif (nextDist > 0):
 				self.moveCar(-nextDist, 0)
@@ -110,23 +109,27 @@ class Car(object):
 
 	# returns the distance this car desires with the one ahead
 	def getFollowDist(self):
-		return self.distf + self.speed / (4.4 * TICK_INTERVAL) * self.dim[1]
+		return FOLLOW_DISTANCE + self.speed * FOLLOW_TIME
 
 	# returns the distance this car desires with the one ahead
 	def getMergeDist(self):
-		return self.distf + self.speed / (14.0 * TICK_INTERVAL) * self.dim[1]
+		return FOLLOW_DISTANCE
 
 	# the threshold at which the car should begin braking for a car in front
 	def getReactDist(self):
-		return self.getFollowDist() - (self.speed ** 2) / ((2.0 * self.decel))
+		return 70 * GRID_RATIO
 
 	# a value to determine the braking power applied when choosing the desired distance with distance > 0
 	def getSensitivity(self, distDelta):
-		return 28.0 * TICK_INTERVAL * 0.5 / distDelta if distDelta > 0 else -1000.0
+		return self.speed * self.getFollowDist() / (distDelta * distDelta)
+
+	# returns the stability factor given by the intelligent driver model
+	def getStabilityFactor(self, distDelta):
+		return self.accel * self.getFollowDist() * self.getFollowDist() / (distDelta * distDelta)
 
 	# defines the acceleration to take on while attempting to merge
-	def mergeAcceleration(self):
-		return self.decel if self.speed > self.limit / 2 else 0.0
+	def getMergeAcceleration(self):
+		return -self.accel
 
 	# draws the car to the canvas at its current position
 	def drawCar(self):

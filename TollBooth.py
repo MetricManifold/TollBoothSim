@@ -85,6 +85,7 @@ class TollBooth(object):
 		carFront = None
 		length = len(self.carList)
 		
+		# if the car is not in this carlist, then it is attempting to merge
 		if car not in self.carList:
 			pos = 0
 			for c in self.carList:
