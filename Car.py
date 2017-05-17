@@ -19,6 +19,7 @@ class Car(object):
 		self.speed = 0.0
 		self.accel = ACCELERATION + uniform(-ACCELERATION_DELTA, ACCELERATION_DELTA)
 		self.decel = -MAX_DECELERATION + uniform(-MAX_DECELERATION_DELTA, MAX_DECELERATION_DELTA)
+		self.minDecel = -MIN_DECELERATION + uniform(-MIN_DECELERATION_DELTA, MIN_DECELERATION_DELTA)
 		self.limit = MAX_SPEED + uniform(-MAX_SPEED_DELTA, MAX_SPEED_DELTA)
 		self.dir = pi / 2
 
@@ -129,7 +130,7 @@ class Car(object):
 
 	# defines the acceleration to take on while attempting to merge
 	def getMergeAcceleration(self):
-		return -self.accel
+		return -self.minDecel
 
 	# draws the car to the canvas at its current position
 	def drawCar(self):
