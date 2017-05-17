@@ -65,6 +65,9 @@ class Car(object):
 		self.currentAccel = min(sDelta1, sDelta2)
 		self.sepDist = nearCarDist, nearCarDistAdj
 
+
+# BEHAVIOUR FUNCTIONS
+
 	# moves the car by the given x/y shift
 	def moveCar(self, shiftx, shifty):
 		self.bbox[0] += shiftx
@@ -103,10 +106,8 @@ class Car(object):
 		self.booth = self.booth.next
 		self.booth.totalSpawned += 1
 
-	# make a tooltip
-	def toggleToolTip(self, event = None):
-		self.toolTipState = not self.toolTipState
-		self.canvas.itemconfig(self.toolTip, state = "normal" if self.toolTipState else "hidden")
+
+# MODEL FUNCTIONS
 
 	# returns the distance this car desires with the one ahead
 	def getFollowDist(self):
@@ -132,9 +133,18 @@ class Car(object):
 	def getMergeAcceleration(self):
 		return -self.minDecel
 
+
+
+# UI FUNCTIONS
+
 	# draws the car to the canvas at its current position
 	def drawCar(self):
 		self.canvas.coords(self.drawnCar, self.bbox)
+
+	# make a tooltip
+	def toggleToolTip(self, event = None):
+		self.toolTipState = not self.toolTipState
+		self.canvas.itemconfig(self.toolTip, state = "normal" if self.toolTipState else "hidden")
 
 	def drawToolTip(self):
 		self.canvas.coords(self.toolTip, self.bbox[2] + self.dim[0], self.bbox[1] - self.dim[1] / 2)
